@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주간 근무표</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#fff; --text:#1d2330; --muted:#6b7280; --line:#e2e5ea;
+  --accent:#2f6fed; --accent-text:#fff;
+  --work:#2f6fed; --work-bg:#dbe6ff; --auto-bg:#eef3ff;
+  --off:#c2410c; --off-bg:#fde6d8;
+  --ok:#15803d; --ok-bg:#dcfce7; --warn:#a16207; --warn-bg:#fef3c7; --bad:#b91c1c; --bad-bg:#fee2e2;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181e; --panel:#1e222a; --text:#e6e8ec; --muted:#9aa1ad; --line:#323844;
+    --accent:#5b8cff; --work:#8fb0ff; --work-bg:#26365c; --auto-bg:#1f2a44;
+    --off:#ffa778; --off-bg:#4a2a1b;
+    --ok:#6ee7a0; --ok-bg:#163525; --warn:#fcd34d; --warn-bg:#3d3214; --bad:#fca5a5; --bad-bg:#45191b;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Malgun Gothic",system-ui,sans-serif;font-size:15px}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+header h1{font-size:18px;margin:0 12px 0 0}
+nav button{border:0;background:none;color:var(--muted);font:inherit;padding:8px 12px;border-radius:8px;cursor:pointer}
+nav button.on{background:var(--work-bg);color:var(--work);font-weight:600}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.spacer{flex:1}
+button.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:7px 12px;border-radius:8px;cursor:pointer}
+button.btn:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+button.danger{color:var(--bad)}
+.weektitle{font-size:17px;font-weight:700;min-width:220px;text-align:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--panel);color:var(--muted);font:inherit;padding:7px 12px;cursor:pointer}
+.seg button.on.m-work{background:var(--work-bg);color:var(--work);font-weight:600}
+.seg button.on.m-off{background:var(--off-bg);color:var(--off);font-weight:600}
+.hint{color:var(--muted);font-size:13px;margin-top:8px}
+.scroll{overflow-x:auto}
+table.grid{border-collapse:collapse;width:100%;min-width:720px}
+.grid th,.grid td{border:1px solid var(--line);padding:0;text-align:center;height:42px}
+.grid th{font-weight:600;font-size:14px;padding:4px 6px}
+.grid th.sat{color:#3b82f6}.grid th.sun{color:#ef4444}
+.grid .name{text-align:left;padding:4px 10px;white-space:nowrap;min-width:120px}
+.grid .name small{color:var(--muted);font-weight:400;margin-left:4px}
+.grid td.c{cursor:pointer;user-select:none;font-size:14px;min-width:70px}
+.grid td.c:hover{outline:2px solid var(--accent);outline-offset:-2px}
+td.W{background:var(--work-bg);color:var(--work);font-weight:700}
+td.A{background:var(--auto-bg);color:var(--work);font-weight:600}
+td.A::after{content:" 자동";font-size:10px;font-weight:400;opacity:.7}
+td.X{background:var(--off-bg);color:var(--off);font-weight:600}
+.need input{width:52px;font:inherit;text-align:center;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--panel);color:var(--text)}
+.need input.ov{border-color:var(--accent);font-weight:700}
+.cnt{font-weight:700;font-size:14px}
+.ok{background:var(--ok-bg);color:var(--ok)}
+.warnc{background:var(--warn-bg);color:var(--warn)}
+.badc{background:var(--bad-bg);color:var(--bad)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:10px}
+.legend span i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+ul.warns{margin:0;padding-left:18px}
+ul.warns li{margin:4px 0}
+.emp-table{width:100%;border-collapse:collapse}
+.emp-table th,.emp-table td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left}
+.emp-table input[type=text],.emp-table select,.add input,.add select,.defneed input{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text)}
+.emp-table tr.inactive td{opacity:.5}
+.defneed{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;max-width:520px}
+.defneed label{display:flex;flex-direction:column;align-items:center;gap:4px}
+.defneed input{width:60px;text-align:center}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:.92}
+.empty{color:var(--muted);text-align:center;padding:30px}
+.hidden{display:none}
+@media print{
+  header,.noprint,.legend,.hint{display:none!important}
+  body{background:#fff;color:#000}
+  .panel{border:0;padding:0}
+  .print-title{display:block!important;font-size:18px;font-weight:700;margin-bottom:8px}
+  td.A::after{content:""}
+  td.W,td.A{background:#e8eefc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  td.X{background:#fff!important;color:#999!important}
+  .need input{border:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>주간 근무표</h1>
+  <nav>
+    <button data-tab="week" class="on">근무표</button>
+    <button data-tab="emp">직원 관리</button>
+    <button data-tab="set">기본 설정</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 근무표 -->
+  <section id="tab-week">
+    <div class="panel noprint">
+      <div class="row">
+        <button class="btn" id="prevW">◀ 이전 주</button>
+        <div class="weektitle" id="weekTitle"></div>
+        <button class="btn" id="nextW">다음 주 ▶</button>
+        <button class="btn" id="thisW">이번 주</button>
+        <div class="spacer"></div>
+        <div class="seg">
+          <button class="m-work on" data-mode="work">근무 배치</button>
+          <button class="m-off" data-mode="off">근무 불가 표시</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="autoBtn">자동 배치</button>
+        <button class="btn" id="clearAutoBtn">자동 배치 지우기</button>
+        <button class="btn" id="copyPrevBtn">지난주 근무 복사</button>
+        <button class="btn danger" id="clearAllBtn">이번 주 전체 지우기</button>
+        <div class="spacer"></div>
+        <button class="btn" id="imgBtn">이미지로 저장</button>
+        <button class="btn" id="textBtn">카톡용 텍스트 복사</button>
+        <button class="btn" id="printBtn">인쇄 / PDF</button>
+      </div>
+      <div class="hint" id="modeHint"></div>
+    </div>
+
+    <div class="panel">
+      <div class="print-title hidden" id="printTitle"></div>
+      <div class="scroll"><table class="grid" id="grid"></table></div>
+      <div class="legend">
+        <span><i style="background:var(--work-bg)"></i>출근 (직접 지정 — 자동 배치해도 유지)</span>
+        <span><i style="background:var(--auto-bg)"></i>출근 (자동 배치)</span>
+        <span><i style="background:var(--off-bg)"></i>근무 불가</span>
+      </div>
+    </div>
+
+    <div class="panel noprint" id="warnPanel"></div>
+  </section>
+
+  <!-- 직원 관리 -->
+  <section id="tab-emp" class="hidden">
+    <div class="panel">
+      <h3 style="margin-top:0">직원 추가</h3>
+      <div class="row add">
+        <input type="text" id="newName" placeholder="이름">
+        <select id="newType"><option>정규직</option><option>파트타임</option></select>
+        <select id="newDays"></select>
+        <button class="btn primary" id="addEmp">추가</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">직원 목록</h3>
+      <div id="empList"></div>
+      <div class="hint">퇴사한 직원은 삭제 대신 <b>퇴사</b>로 바꾸면 지난 근무표 기록이 남아요. 순서는 근무표에 표시되는 순서예요.</div>
+    </div>
+  </section>
+
+  <!-- 기본 설정 -->
+  <section id="tab-set" class="hidden">
+    <div class="panel">
+      <h3 style="margin-top:0">한 주의 시작 요일</h3>
+      <select id="weekStart" style="font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text)">
+        <option value="1">월요일 ~ 일요일</option>
+        <option value="0">일요일 ~ 토요일</option>
+      </select>
+      <div class="hint">바꿔도 이미 짜둔 근무표는 날짜 그대로 유지돼요. 보이는 한 주의 범위만 달라져요.</div>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">요일별 기본 필요 인원</h3>
+      <div class="defneed" id="defNeed"></div>
+      <div class="hint">새로 여는 주에 기본으로 들어가는 값이에요. 특정 주만 다르게 하려면 근무표의 "필요 인원" 칸에서 바꾸세요.</div>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">자동 배치 옵션</h3>
+      <label><input type="checkbox" id="fillTarget"> 필요 인원을 채운 뒤에도, 주 근무일수가 모자란 직원은 여유 있는 날에 더 배치하기</label>
+      <div class="hint">정규직 주 5일을 꼭 채워야 한다면 켜두세요. 끄면 필요 인원만큼만 배치해요.</div>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">백업</h3>
+      <div class="row">
+        <button class="btn" id="exportBtn">백업 파일 저장</button>
+        <button class="btn" id="importBtn">백업 파일 불러오기</button>
+        <input type="file" id="importFile" accept=".json" class="hidden">
+      </div>
+      <div class="hint">데이터는 이 브라우저에 저장돼요. 브라우저 기록을 지우면 사라질 수 있으니 가끔 백업 파일로 저장해두세요.</div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// 요일 이름은 Date.getDay() 순서 (0=일 ~ 6=토)
+const DOW = ['일','월','화','수','목','금','토'];
+const KEY = 'weekly-schedule-v1';
+let S = load();
+let curStart = startOf(new Date());
+let mode = 'work';
+
+/* ---------- 저장 ----------
+   v2 구조: 근무 칸과 필요 인원을 "날짜"별로 저장해서, 한 주의 시작 요일을 바꿔도 데이터가 어긋나지 않음
+   { version:2, employees, weekStart(0=일,1=월), defaultNeed[getDay 순서], fillTarget,
+     cells: { 'YYYY-MM-DD': { 직원id: 'W'|'A'|'X' } }, need: { 'YYYY-MM-DD': 숫자 } } */
+function blank(){ return { version: 2, employees: [], weekStart: 1, defaultNeed: [4,3,3,3,3,3,4], fillTarget: true, cells: {}, need: {} }; }
+function load(){
+  try { const t = localStorage.getItem(KEY); if (t) return migrate(JSON.parse(t)); } catch(e){}
+  return blank();
+}
+// v1(월요일 시작 주 단위 저장) → v2(날짜 단위 저장)
+function migrate(d){
+  if (d.version === 2) return d;
+  const n = blank();
+  n.employees = d.employees || [];
+  n.fillTarget = d.fillTarget !== false;
+  if (Array.isArray(d.defaultNeed)) d.defaultNeed.forEach((v,i) => n.defaultNeed[(i+1)%7] = v);
+  for (const k in (d.weeks || {})){
+    const w = d.weeks[k], mon = parseYmd(k);
+    for (let i = 0; i < 7; i++){
+      const dk = ymd(addDays(mon,i));
+      if (w.need && w.need[i] != null) n.need[dk] = w.need[i];
+      for (const id in (w.cells || {})){
+        const v = w.cells[id][i];
+        if (v) (n.cells[dk] = n.cells[dk] || {})[id] = v;
+      }
+    }
+  }
+  return n;
+}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+/* ---------- 유틸 ---------- */
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function startOf(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - (x.getDay() - S.weekStart + 7) % 7); return x; }
+function addDays(d,n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function parseYmd(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+const md = d => (d.getMonth()+1)+'/'+d.getDate();
+const label = d => `${md(d)}(${DOW[d.getDay()]})`;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(()=>t.classList.remove('show'), 1800); }
+
+/* ---------- 날짜별 데이터 ---------- */
+const weekDates = (start = curStart) => [0,1,2,3,4,5,6].map(i => addDays(start,i));
+const needOf = d => S.need[ymd(d)] != null ? S.need[ymd(d)] : S.defaultNeed[d.getDay()];
+const cellOf = (d,id) => (S.cells[ymd(d)] && S.cells[ymd(d)][id]) || '';
+function setCell(d,id,v){
+  const k = ymd(d);
+  if (v) (S.cells[k] = S.cells[k] || {})[id] = v;
+  else if (S.cells[k]) { delete S.cells[k][id]; if (!Object.keys(S.cells[k]).length) delete S.cells[k]; }
+}
+const isWork = (d,id) => { const v = cellOf(d,id); return v === 'W' || v === 'A'; };
+const workCount = (dates,id) => dates.filter(d => isWork(d,id)).length;
+const dayCount = d => S.employees.filter(e => isWork(d,e.id)).length;
+const shownEmps = dates => S.employees.filter(e => e.active || dates.some(d => isWork(d,e.id)));
+function clearAuto(dates){ for (const d of dates) for (const e of S.employees) if (cellOf(d,e.id) === 'A') setCell(d,e.id,''); }
+
+/* ---------- 자동 배치 ---------- */
+function autoFill(){
+  const dates = weekDates();
+  clearAuto(dates);
+  const emps = S.employees.filter(e => e.active);
+  const can = (e,i) => cellOf(dates[i],e.id) === '' && workCount(dates,e.id) < e.days;
+  const streak = (e,i) => { let n = 1; for (let j=i-1; j>=0 && isWork(dates[j],e.id); j--) n++; for (let j=i+1; j<7 && isWork(dates[j],e.id); j++) n++; return n; };
+  // 여유(slack): 가능한 날 수 - 남은 근무일. 작을수록 고를 날이 적은 사람 → 우선
+  const slack = e => [0,1,2,3,4,5,6].filter(i => can(e,i)).length - (e.days - workCount(dates,e.id));
+
+  // 1단계: 필요 인원 채우기 (후보가 가장 빠듯한 날부터)
+  for (let g = 0; g < 200; g++){
+    let best = null;
+    for (let i = 0; i < 7; i++){
+      const deficit = needOf(dates[i]) - dayCount(dates[i]);
+      if (deficit <= 0) continue;
+      const cands = emps.filter(e => can(e,i));
+      if (!cands.length) continue;
+      const tight = cands.length - deficit;
+      if (!best || tight < best.tight || (tight === best.tight && deficit > best.deficit)) best = { i, cands, tight, deficit };
+    }
+    if (!best) break;
+    const score = e => -slack(e)*4 + (e.days - workCount(dates,e.id))*2 - streak(e,best.i)*3 + Math.random()*2;
+    best.cands.sort((a,b) => score(b) - score(a));
+    setCell(dates[best.i], best.cands[0].id, 'A');
+  }
+
+  // 2단계: 주 근무일수 못 채운 직원을 여유 있는 날에 추가
+  if (S.fillTarget){
+    const surplus = i => dayCount(dates[i]) - needOf(dates[i]);
+    for (let g = 0; g < 100; g++){
+      let progress = false;
+      for (const e of emps){
+        if (workCount(dates,e.id) >= e.days) continue;
+        const days = [0,1,2,3,4,5,6].filter(i => can(e,i));
+        if (!days.length) continue;
+        days.sort((a,b) => surplus(a) - surplus(b) || streak(e,a) - streak(e,b) || Math.random() - .5);
+        setCell(dates[days[0]], e.id, 'A');
+        progress = true;
+      }
+      if (!progress) break;
+    }
+  }
+  save(); render(); toast('자동 배치 완료 — 다시 누르면 다른 조합이 나와요');
+}
+
+/* ---------- 근무표 그리기 ---------- */
+function render(){
+  const dates = weekDates();
+  const title = `${dates[0].getFullYear()}. ${label(dates[0])} ~ ${label(dates[6])}`;
+  $('weekTitle').textContent = title;
+  $('printTitle').textContent = '근무표 ' + title;
+  $('modeHint').textContent = mode === 'work'
+    ? '칸을 누르면 출근 ↔ 휴무가 바뀌어요. 직접 지정한 출근은 자동 배치를 다시 해도 그대로 남아요.'
+    : '직원이 못 나온다고 한 날을 눌러 "불가"로 표시하세요. 다시 누르면 해제돼요.';
+
+  const emps = shownEmps(dates);
+  let h = '<tr><th class="name">직원</th>' + dates.map(d =>
+    `<th class="${d.getDay()===6?'sat':d.getDay()===0?'sun':''}">${DOW[d.getDay()]}<br><small>${md(d)}</small></th>`).join('') + '<th>근무일</th></tr>';
+
+  h += '<tr class="need"><th class="name">필요 인원</th>' + dates.map((d,i) => {
+    const ov = S.need[ymd(d)] != null;
+    return `<td><input type="number" min="0" max="99" data-need="${i}" value="${needOf(d)}" class="${ov?'ov':''}" title="${ov?'이번 주만 바꾼 값':'기본값'}"></td>`;
+  }).join('') + '<td></td></tr>';
+
+  if (!emps.length){
+    h += `<tr><td colspan="9" class="empty">아직 직원이 없어요. <b>직원 관리</b>에서 추가해 주세요.</td></tr>`;
+  }
+  for (const e of emps){
+    h += `<tr><td class="name">${esc(e.name)}<small>${e.type==='정규직'?'정규':'파트'}·주${e.days}</small></td>`;
+    dates.forEach((d,i) => {
+      const v = cellOf(d,e.id);
+      h += `<td class="c ${v}" data-emp="${e.id}" data-day="${i}">${v==='W'||v==='A'?'출근':v==='X'?'불가':''}</td>`;
+    });
+    const n = workCount(dates,e.id);
+    h += `<td class="cnt ${n===e.days?'ok':n<e.days?'warnc':'badc'}">${n}/${e.days}</td></tr>`;
+  }
+
+  h += '<tr><th class="name">배치 인원</th>' + dates.map(d => {
+    const n = dayCount(d), need = needOf(d);
+    return `<td class="cnt ${n===need?'ok':n<need?'badc':'warnc'}">${n}/${need}</td>`;
+  }).join('') + '<td></td></tr>';
+  $('grid').innerHTML = h;
+
+  renderWarnings(emps, dates);
+}
+
+function renderWarnings(emps, dates){
+  const items = [];
+  for (const d of dates){
+    const n = dayCount(d), need = needOf(d);
+    if (n < need){
+      const free = S.employees.filter(e => e.active && cellOf(d,e.id) === '');
+      const why = free.length ? `배치 가능한 직원: ${free.map(e=>esc(e.name)).join(', ')} (근무일수 초과 주의)` : '이 날 가능한 직원이 없어요';
+      items.push(`<li><b>${label(d)}</b> — ${need-n}명 부족. ${why}</li>`);
+    } else if (n > need){
+      items.push(`<li><b>${label(d)}</b> — ${n-need}명 많음</li>`);
+    }
+  }
+  for (const e of emps){
+    const n = workCount(dates,e.id);
+    if (n < e.days){
+      const offs = dates.filter(d => cellOf(d,e.id) === 'X').length;
+      items.push(`<li><b>${esc(e.name)}</b> — 주 ${e.days}일 중 ${n}일 배치${offs?` (불가일 ${offs}일)`:''}</li>`);
+    } else if (n > e.days){
+      items.push(`<li><b>${esc(e.name)}</b> — 주 ${e.days}일인데 ${n}일 배치됨</li>`);
+    }
+  }
+  $('warnPanel').innerHTML = '<h3 style="margin-top:0">확인할 점</h3>' +
+    (items.length ? `<ul class="warns">${items.join('')}</ul>` : '<div style="color:var(--ok)">✔ 필요 인원과 근무일수가 모두 맞아요.</div>');
+}
+
+/* ---------- 근무표 이벤트 ---------- */
+$('grid').addEventListener('click', ev => {
+  const td = ev.target.closest('td.c'); if (!td) return;
+  const d = weekDates()[+td.dataset.day], id = td.dataset.emp, v = cellOf(d,id);
+  if (mode === 'work'){
+    if (v === 'X') toast('근무 불가로 표시된 날이에요. "근무 불가 표시" 모드에서 먼저 해제하세요.');
+    else setCell(d,id, v === '' ? 'W' : '');
+  } else setCell(d,id, v === 'X' ? '' : 'X');
+  save(); render();
+});
+$('grid').addEventListener('change', ev => {
+  const inp = ev.target; if (!inp.dataset.need) return;
+  const d = weekDates()[+inp.dataset.need], k = ymd(d);
+  const val = inp.value === '' ? null : Math.max(0, parseInt(inp.value, 10) || 0);
+  if (val == null || val === S.defaultNeed[d.getDay()]) delete S.need[k]; else S.need[k] = val;
+  save(); render();
+});
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+  render();
+});
+$('prevW').onclick = () => { curStart = addDays(curStart,-7); render(); };
+$('nextW').onclick = () => { curStart = addDays(curStart, 7); render(); };
+$('thisW').onclick = () => { curStart = startOf(new Date()); render(); };
+$('autoBtn').onclick = () => {
+  if (!S.employees.some(e => e.active)) return toast('먼저 직원을 추가해 주세요');
+  autoFill();
+};
+$('clearAutoBtn').onclick = () => { clearAuto(weekDates()); save(); render(); };
+$('clearAllBtn').onclick = () => {
+  if (!confirm('이번 주의 출근·불가 표시를 모두 지울까요?')) return;
+  for (const d of weekDates()) delete S.cells[ymd(d)];
+  save(); render();
+};
+$('copyPrevBtn').onclick = () => {
+  const dates = weekDates(), prev = weekDates(addDays(curStart,-7));
+  if (!prev.some(d => S.cells[ymd(d)])) return toast('지난주 근무표가 없어요');
+  let skipped = 0;
+  for (const e of S.employees.filter(e => e.active)){
+    dates.forEach((d,i) => {
+      if (!isWork(prev[i],e.id)) return;
+      if (cellOf(d,e.id) === 'X') { skipped++; return; }
+      setCell(d,e.id,'W');
+    });
+  }
+  save(); render();
+  toast(skipped ? `복사 완료 (이번 주 불가일 ${skipped}칸은 제외)` : '지난주 근무를 복사했어요');
+};
+$('textBtn').onclick = () => {
+  const dates = weekDates();
+  let t = `📅 근무표 ${label(dates[0])} ~ ${label(dates[6])}\n`;
+  for (const d of dates){
+    const names = S.employees.filter(e => isWork(d,e.id)).map(e => e.name);
+    t += `\n${DOW[d.getDay()]} ${md(d)} (${names.length}명): ${names.join(', ') || '-'}`;
+  }
+  copyText(t);
+};
+$('printBtn').onclick = () => window.print();
+
+// 근무표를 캔버스에 직접 그려서 PNG로 저장 (인터넷 없이 동작하도록 외부 라이브러리 안 씀)
+$('imgBtn').onclick = () => {
+  const dates = weekDates(), emps = shownEmps(dates);
+  if (!emps.length) return toast('저장할 직원이 없어요');
+  const pad = 24, nameW = 130, cellW = 84, rowH = 44, headH = 54, titleH = 56, scale = 2;
+  const W = pad*2 + nameW + cellW*7, H = pad*2 + titleH + headH + rowH*(emps.length+1);
+  const cv = document.createElement('canvas'); cv.width = W*scale; cv.height = H*scale;
+  const c = cv.getContext('2d'); c.scale(scale, scale);
+  const F = '"Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+  c.fillStyle = '#fff'; c.fillRect(0,0,W,H);
+  c.textBaseline = 'middle';
+
+  c.fillStyle = '#1d2330'; c.font = `bold 22px ${F}`; c.textAlign = 'left';
+  c.fillText(`근무표  ${label(dates[0])} ~ ${label(dates[6])}`, pad, pad + titleH/2 - 6);
+
+  const x0 = pad, y0 = pad + titleH, colX = i => x0 + nameW + cellW*i;
+  // 머리줄
+  c.fillStyle = '#f3f4f6'; c.fillRect(x0, y0, W - pad*2, headH);
+  dates.forEach((d,i) => {
+    const g = d.getDay(), cx = colX(i) + cellW/2;
+    c.fillStyle = g === 0 ? '#ef4444' : g === 6 ? '#3b82f6' : '#1d2330';
+    c.textAlign = 'center'; c.font = `bold 16px ${F}`; c.fillText(DOW[g], cx, y0 + 19);
+    c.fillStyle = '#6b7280'; c.font = `13px ${F}`; c.fillText(md(d), cx, y0 + 38);
+  });
+  c.fillStyle = '#1d2330'; c.textAlign = 'left'; c.font = `bold 15px ${F}`; c.fillText('직원', x0 + 12, y0 + headH/2);
+
+  // 직원 줄
+  emps.forEach((e,r) => {
+    const y = y0 + headH + rowH*r;
+    c.fillStyle = '#1d2330'; c.textAlign = 'left'; c.font = `15px ${F}`; c.fillText(e.name, x0 + 12, y + rowH/2);
+    dates.forEach((d,i) => {
+      if (!isWork(d,e.id)) return;
+      c.fillStyle = '#dbe6ff'; c.fillRect(colX(i), y, cellW, rowH);
+      c.fillStyle = '#2f6fed'; c.textAlign = 'center'; c.font = `bold 15px ${F}`; c.fillText('출근', colX(i) + cellW/2, y + rowH/2);
+    });
+  });
+  // 인원 줄
+  const yc = y0 + headH + rowH*emps.length;
+  c.fillStyle = '#f9fafb'; c.fillRect(x0, yc, W - pad*2, rowH);
+  c.fillStyle = '#6b7280'; c.textAlign = 'left'; c.font = `bold 14px ${F}`; c.fillText('출근 인원', x0 + 12, yc + rowH/2);
+  dates.forEach((d,i) => { c.textAlign = 'center'; c.fillText(dayCount(d) + '명', colX(i) + cellW/2, yc + rowH/2); });
+
+  // 격자
+  c.strokeStyle = '#d1d5db'; c.lineWidth = 1;
+  const bottom = yc + rowH;
+  for (let r = 0; r <= emps.length + 2; r++){
+    const y = r === 0 ? y0 : y0 + headH + rowH*(r-1);
+    c.beginPath(); c.moveTo(x0, y + .5); c.lineTo(W - pad, y + .5); c.stroke();
+  }
+  [x0, ...dates.map((_,i) => colX(i)), W - pad].forEach(x => { c.beginPath(); c.moveTo(x + .5, y0); c.lineTo(x + .5, bottom); c.stroke(); });
+
+  cv.toBlob(b => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+    a.download = `근무표_${ymd(dates[0])}.png`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('이미지를 저장했어요 (다운로드 폴더)');
+  }, 'image/png');
+};
+
+function copyText(t){
+  const fallback = () => {
+    const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('복사했어요. 카톡에 붙여넣기 하세요'); } catch(e){ prompt('아래 내용을 복사하세요', t); }
+    ta.remove();
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(() => toast('복사했어요. 카톡에 붙여넣기 하세요'), fallback);
+  else fallback();
+}
+
+/* ---------- 직원 관리 ---------- */
+const daysOptions = sel => [1,2,3,4,5,6,7].map(n => `<option value="${n}" ${n===sel?'selected':''}>주 ${n}일</option>`).join('');
+$('newDays').innerHTML = daysOptions(5);
+$('newType').onchange = () => { $('newDays').value = $('newType').value === '정규직' ? 5 : 3; };
+$('addEmp').onclick = () => {
+  const name = $('newName').value.trim();
+  if (!name) return toast('이름을 입력하세요');
+  S.employees.push({ id: uid(), name, type: $('newType').value, days: +$('newDays').value, active: true });
+  $('newName').value = ''; $('newName').focus();
+  save(); renderEmps();
+};
+$('newName').addEventListener('keydown', e => { if (e.key === 'Enter') $('addEmp').click(); });
+
+function renderEmps(){
+  if (!S.employees.length){
+    $('empList').innerHTML = `<div class="empty">등록된 직원이 없어요.<br><br><button class="btn" id="sampleBtn">예시 직원 9명 넣어보기</button></div>`;
+    $('sampleBtn').onclick = loadSample;
+    return;
+  }
+  $('empList').innerHTML = `<table class="emp-table"><tr><th>순서</th><th>이름</th><th>구분</th><th>근무일수</th><th>상태</th><th></th></tr>` +
+    S.employees.map((e,i) => `<tr class="${e.active?'':'inactive'}" data-id="${e.id}">
+      <td><button class="btn" data-act="up" ${i===0?'disabled':''}>↑</button> <button class="btn" data-act="down" ${i===S.employees.length-1?'disabled':''}>↓</button></td>
+      <td><input type="text" data-f="name" value="${esc(e.name)}"></td>
+      <td><select data-f="type"><option ${e.type==='정규직'?'selected':''}>정규직</option><option ${e.type==='파트타임'?'selected':''}>파트타임</option></select></td>
+      <td><select data-f="days">${daysOptions(e.days)}</select></td>
+      <td><select data-f="active"><option value="1" ${e.active?'selected':''}>근무중</option><option value="0" ${e.active?'':'selected'}>퇴사</option></select></td>
+      <td><button class="btn danger" data-act="del">삭제</button></td></tr>`).join('') + '</table>';
+}
+$('empList').addEventListener('change', ev => {
+  const tr = ev.target.closest('tr[data-id]'); if (!tr) return;
+  const e = S.employees.find(x => x.id === tr.dataset.id), f = ev.target.dataset.f;
+  if (f === 'name') e.name = ev.target.value.trim() || e.name;
+  if (f === 'type') { e.type = ev.target.value; if (e.type === '정규직') e.days = 5; }
+  if (f === 'days') e.days = +ev.target.value;
+  if (f === 'active') e.active = ev.target.value === '1';
+  save(); renderEmps();
+});
+$('empList').addEventListener('click', ev => {
+  const btn = ev.target.closest('button[data-act]'); if (!btn) return;
+  const tr = btn.closest('tr'), i = S.employees.findIndex(x => x.id === tr.dataset.id), e = S.employees[i];
+  if (btn.dataset.act === 'up' && i > 0) [S.employees[i-1], S.employees[i]] = [S.employees[i], S.employees[i-1]];
+  if (btn.dataset.act === 'down' && i < S.employees.length-1) [S.employees[i+1], S.employees[i]] = [S.employees[i], S.employees[i+1]];
+  if (btn.dataset.act === 'del'){
+    if (!confirm(`${e.name}님을 삭제할까요?\n지난 근무표에서도 사라져요. 기록을 남기려면 "퇴사"로 바꾸세요.`)) return;
+    S.employees.splice(i,1);
+    for (const k in S.cells){ delete S.cells[k][e.id]; if (!Object.keys(S.cells[k]).length) delete S.cells[k]; }
+  }
+  save(); renderEmps();
+});
+function loadSample(){
+  const list = [['김민준','정규직',5],['이서연','정규직',5],['박지훈','정규직',5],['최수아','정규직',5],
+    ['정도윤','파트타임',4],['강하은','파트타임',4],['조예준','파트타임',3],['윤지우','파트타임',3],['장서준','파트타임',3]];
+  S.employees = list.map(([name,type,days]) => ({ id: uid(), name, type, days, active: true }));
+  S.defaultNeed = [6,5,5,5,5,5,6];
+  save(); renderEmps(); renderSettings();
+}
+
+/* ---------- 설정 ---------- */
+function renderSettings(){
+  $('weekStart').value = String(S.weekStart);
+  const order = [0,1,2,3,4,5,6].map(i => (S.weekStart + i) % 7);
+  $('defNeed').innerHTML = order.map(g => `<label>${DOW[g]}<input type="number" min="0" max="99" data-dn="${g}" value="${S.defaultNeed[g]}"></label>`).join('');
+  $('fillTarget').checked = !!S.fillTarget;
+}
+$('weekStart').onchange = ev => {
+  S.weekStart = +ev.target.value;
+  curStart = startOf(curStart);
+  save(); renderSettings();
+};
+$('defNeed').addEventListener('change', ev => {
+  const g = +ev.target.dataset.dn; S.defaultNeed[g] = Math.max(0, parseInt(ev.target.value,10) || 0); save();
+});
+$('fillTarget').onchange = ev => { S.fillTarget = ev.target.checked; save(); };
+$('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `근무표_백업_${ymd(new Date())}.json`; a.click(); URL.revokeObjectURL(a.href);
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  f.text().then(t => {
+    try {
+      const d = migrate(JSON.parse(t));
+      if (!Array.isArray(d.employees) || !d.cells) throw 0;
+      if (!confirm('지금 데이터를 백업 파일 내용으로 바꿀까요?')) return;
+      S = d; curStart = startOf(curStart); save(); renderEmps(); renderSettings(); toast('불러오기 완료');
+    } catch(e){ alert('올바른 백업 파일이 아니에요.'); }
+    ev.target.value = '';
+  });
+};
+
+/* ---------- 탭 ---------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  ['week','emp','set'].forEach(t => $('tab-'+t).classList.toggle('hidden', t !== b.dataset.tab));
+  if (b.dataset.tab === 'week') render();
+});
+
+render(); renderEmps(); renderSettings();
+</script>
+</body>
+</html>
